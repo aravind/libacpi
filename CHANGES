@@ -1,0 +1,6 @@
+0.2 (2007-07-29):
+    * Fixed memleaks
+    * Prevent double header inclusion, thanks Julien Blache
+
+0.1 (2007-06-14):
+    * Initial release

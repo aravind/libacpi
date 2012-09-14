@@ -1,0 +1,415 @@
+.hy 0
+.TH libacpi 3 LIBACPI ""
+.ds n 5
+.ds d /etc/terminfo
+.SH NAME
+\fBlibacpi\fR \- general purpose library for ACPI
+.SH SYNOPSIS
+\fB#include <libacpi.h>\fR
+.br
+.SH DESCRIPTION
+The \fBlibacpi\fR library routines provide its users a method
+of reading ACPI values in a comfortable way. This includes
+battery information, fan states, thermal zones and AC states.
+.PP
+A program using these routines must be linked with \fB\-lacpi\fR option.
+.PP
+To initialize this functionality you have to first allocate space for a global_t structure
+.sp
+    \fBglobal_t *global = malloc (sizeof (global_t));\fR
+.sp
+
+Now use the \fBcheck_acpi_support()\fR function to check if the system actually supports ACPI.
+In case it does the function will return \fBSUCCESS\fR or \fBNOT_SUPPORTED\fR on failure.
+.sp
+Now you can use the following functions to initialize the values you get
+from the ACPI interface:
+.sp
+    \fBinit_acpi_batt(global);\fR
+    \fBinit_acpi_acadapt(global);\fR
+    \fBinit_acpi_fan(global);\fR
+    \fBinit_acpi_thermal(global);\fR
+.sp
+To know if some of the features is not supported it is a good idea to store the return values
+in some variable.
+.sp
+If you want to read non\-static values the ACPI interface provides (for example battery percentage), use the following functions to do this:
+.sp
+    \fBread_acpi_batt(int num)\fR
+    \fBread_acpi_zone(int num, global_t *globals);\fR
+    \fBread_acpi_fan(int num)\fR
+    \fBread_acpi_acstate(global_t *globals);\fR
+.sp
+Since you can have more than one battery, fan and thermal zone, num is the number you want to read, for example in a loop.
+.sp
+    \fBthermal_t *tp;\fR
+    ....
+    \fBfor(i=0; i<global\->thermal_count; i++){\fR
+    \fB    read_acpi_zone(i, global);\fR
+    \fB    tp = &thermals[i];\fR
+    ...
+    \fB}\fR
+.SS "Structures"
+
+.in +1c
+.ti -1c
+.RI "struct \fBfan_t\fP"
+.br
+.RI "\fIfan data \fP"
+.ti -1c
+.RI "struct \fBbattery_t\fP"
+.br
+.RI "\fIinformation found about battery \fP"
+.ti -1c
+.RI "struct \fBthermal_t\fP"
+.br
+.RI "\fIinformation about thermal zone \fP"
+.ti -1c
+.RI "struct \fBadapter_t\fP"
+.br
+.RI "\fIinformation about ac adapater \fP"
+.ti -1c
+.RI "struct \fBglobal_t\fP"
+.br
+.RI "\fIglobal acpi structure \fP"
+.in -1c
+.SS "Functions"
+
+.in +1c
+.ti -1c
+.RI "int \fBinit_acpi_batt\fP (\fBglobal_t\fP *globals)"
+.br
+.ti -1c
+.RI "int \fBinit_acpi_acadapt\fP (\fBglobal_t\fP *globals)"
+.br
+.ti -1c
+.RI "int \fBinit_acpi_thermal\fP (\fBglobal_t\fP *globals)"
+.br
+.ti -1c
+.RI "int \fBinit_acpi_fan\fP (\fBglobal_t\fP *globals)"
+.br
+.ti -1c
+.RI "int \fBcheck_acpi_support\fP (void)"
+.br
+.ti -1c
+.RI "int \fBread_acpi_batt\fP (const int num)"
+.br
+.ti -1c
+.RI "void \fBread_acpi_acstate\fP (\fBglobal_t\fP *globals)"
+.br
+.ti -1c
+.RI "int \fBread_acpi_zone\fP (const int num, \fBglobal_t\fP *globals)"
+.br
+.ti -1c
+.RI "int \fBread_acpi_fan\fP (const int num)"
+.br
+.in -1c
+.SS "Variables"
+
+.in +1c
+.ti -1c
+.RI "\fBbattery_t\fP \fBbatteries\fP [MAX_ITEMS]"
+.br
+.ti -1c
+.RI "\fBthermal_t\fP \fBthermals\fP [MAX_ITEMS]"
+.br
+.ti -1c
+.RI "\fBfan_t\fP \fBfans\fP [MAX_ITEMS]"
+.br
+.in -1c
+.SS "Enumerations"
+
+.in +1c
+.ti -1c
+.RI "enum { \fBITEM_EXCEED\fP =  \-5, \fBDISABLED\fP =  \-4, \fBNOT_PRESENT\fP =  \-3, \fBALLOC_ERR\fP =  \-2, \fBNOT_SUPPORTED\fP =  \-1, \fBSUCCESS\fP }"
+.br
+.ti -1c
+.RI "enum \fBpower_state_t\fP { \fBP_AC\fP, \fBP_BATT\fP, \fBP_ERR\fP }"
+.br
+.ti -1c
+.RI "enum \fBthermal_state_t\fP { \fBT_CRIT\fP, \fBT_HOT\fP, \fBT_PASS\fP, \fBT_ACT\fP, \fBT_OK\fP, \fBT_ERR\fP }"
+.br
+.ti -1c
+.RI "enum \fBcharge_state_t\fP { \fBC_CHARGE\fP, \fBC_DISCHARGE\fP, \fBC_CHARGED\fP, \fBC_NOINFO\fP, \fBC_ERR\fP }"
+.br
+.ti -1c
+.RI "enum \fBbatt_state_t\fP { \fBB_HIGH\fP, \fBB_MED\fP, \fBB_LOW\fP, \fBB_CRIT\fP, \fBB_HARD_CRIT\fP, \fBB_ERR\fP }"
+.br
+.ti -1c
+.RI "enum \fBthermal_mode_t\fP { \fBCO_ACT\fP, \fBCO_PASS\fP, \fBCO_CRIT\fP, \fBCO_ERR\fP }"
+.br
+.ti -1c
+.RI "enum \fBfan_state_t\fP { \fBF_ON\fP, \fBF_OFF\fP, \fBF_ERR\fP }"
+.br
+.in -1c
+.SH "Detailed Description"
+.PP
+Now follows a more detailed description of functions, structures and enums.
+
+Definition in file \fBlibacpi.h\fP.
+.SH "Function Documentation"
+.PP
+.SS "int check_acpi_support (void)"
+.PP
+Checks if the system does support ACPI or not.
+.PP
+\fBReturns:\fP
+.RS 4
+SUCCESS if the system supports ACPI or, NOT_SUPPORTED.
+.RE
+.SS "int init_acpi_acadapt (\fBglobal_t\fP * globals)"
+.PP
+Finds existing ac adapter and fills the adapt (in globa struct) structure with the paths of the important files to parse.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIglobals\fP pointer to global acpi structure
+.PP
+\fBReturns:\fP
+.Rs 4
+SUCCESS if everything is ok, NOT_SUPPORTED if no information can be found, ALLOC_ERR on allocation errors.
+.RE
+.PP
+.SS "int init_acpi_batt (\fBglobal_t\fP * globals)"
+.PP
+Finds existing batteries and fills the corresponding batteries structures with the paths of the important files to parse.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIglobals\fP pointer to global acpi structure
+.PP
+\fBReturns:\fP
+.Rs 4
+SUCCESS if everything is ok, NOT_SUPPORTED if no information can be found, ALLOC_ERR on allocation errors and ITEM_EXCEED if
+there are more batteries found than MAX_ITEMS, this should never happen.
+.RE
+.PP
+.SS "int init_acpi_fan (\fBglobal_t\fP * globals)"
+.PP
+Finds existing fans and fills corresponding fan structures with the paths of the important files to parse for fan information.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIglobals\fP pointer to global acpi structure
+.PP
+\fBReturns:\fP
+.Rs 4
+SUCCESS if everything is ok, NOT_SUPPORTED if no information can be found, ALLOC_ERR on allocation errors and ITEM_EXCEED if
+there are more fans found than MAX_ITEMS, this should never happen.
+.RE
+.PP
+.SS "int init_acpi_thermal (\fBglobal_t\fP * globals)"
+.PP
+Finds existing thermal zones and fills corresponding thermal structures with the paths of the important files to parse for thermal information.
+.PP
+\fBParameters:\fP
+.RS 4
+\fIglobals\fP pointer to global acpi structure
+.PP
+\fBReturns:\fP
+.Rs 4
+SUCCESS if everything is ok, NOT_SUPPORTED if no information can be found, ALLOC_ERR on allocation errors and ITEM_EXCEED if
+there are more thermal zones found than MAX_ITEMS, this should never happen.
+.RE
+.PP
+.SS "void read_acpi_acstate (\fBglobal_t\fP * globals)"
+.PP
+Looks up if the ac adapter is plugged in or not and sets the values in a struct
+.PP
+\fBParameters:\fP
+.RS 4
+\fIglobals\fP pointer to the global acpi structure
+.RE
+.PP
+Referenced by init_acpi_acadapt().
+.SS "int read_acpi_batt (const int num)"
+.PP
+Gathers all information of a given battery and filling a struct with it.
+.PP
+\fBParameters:\fP
+.RS 4
+\fInum\fP number of battery
+.PP
+\fBReturns:\fP
+.Rs 4
+SUCCESS if everything is ok or ITEM_EXCEED if there is not battery num.
+.SS "int read_acpi_fan (const int num)"
+.PP
+Gathers all information about given fan and sets the corresponding values in a struct.
+.PP
+\fBParameters:\fP
+.RS 4
+\fInum\fP number for the fan to read
+.PP
+\fBReturns:\fP
+.Rs 4
+SUCCESS if everything is ok, ITEM_EXCEED if there is not fan num or NOT_SUPPORTED if the
+values can't be read. This should not happen if the init function returned SUCCESS if the ACPI implementation.
+.SS "int read_acpi_zone (const int num, \fBglobal_t\fP * globals)"
+.PP
+Gathers all information of a given thermal zone and sets the corresponding values in a struct.
+.PP
+\fBParameters:\fP
+.RS 4
+\fInum\fP zone
+.br
+\fIglobals\fP pointer to global acpi struct, needed if there is just one zone
+.PP
+\fBReturns:\fP
+.Rs 4
+SUCCESS if everything is ok, ITEM_EXCEED if there is not thermal zone num or NOT_SUPPORTED if the
+values can't be read. This should not happen if the init function returned SUCCESS if the ACPI implementation.
+
+.SH "Enumeration Type Documentation"
+.PP
+.SS "possible function return values"
+.PP
+\fBEnumerator: \fP
+.in +1c
+.TP
+\fB\fIITEM_EXCEED \fP\fP
+maximum item count reached
+.TP
+\fB\fIDISABLED \fP\fP
+features is disabled
+.TP
+\fB\fINOT_PRESENT \fP\fP
+something is not present
+.TP
+\fB\fIALLOC_ERR \fP\fP
+an error occurred while allocating space
+.TP
+\fB\fINOT_SUPPORTED \fP\fP
+a feature is not supported
+.TP
+\fB\fISUCCESS \fP\fP
+everything was fine
+.SS "enum \fBbatt_state_t\fP"
+.PP
+\fBEnumerator: \fP
+.in +1c
+.TP
+\fB\fIB_HIGH \fP\fP
+remaining battery life is high
+.TP
+\fB\fIB_MED \fP\fP
+remaining battery life is medium
+.TP
+\fB\fIB_LOW \fP\fP
+remaining battery life is low
+.TP
+\fB\fIB_CRIT \fP\fP
+remaining battery life is critical
+.TP
+\fB\fIB_HARD_CRIT \fP\fP
+remaining battery life is hard critical, you have a few minutes to charge
+.TP
+\fB\fIB_ERR \fP\fP
+some error occurred while reading the battery state
+.SS "enum \fBcharge_state_t\fP"
+.PP
+\fBEnumerator: \fP
+.in +1c
+.TP
+\fB\fIC_CHARGE \fP\fP
+battery is currently charging
+.TP
+\fB\fIC_DISCHARGE \fP\fP
+battery is currently discharging
+.TP
+\fB\fIC_CHARGED \fP\fP
+battery is charged
+.TP
+\fB\fIC_NOINFO \fP\fP
+hardware doesn't give information about the state
+.TP
+\fB\fIC_ERR \fP\fP
+some error occurred while reading the charge state
+.SS "enum \fBfan_state_t\fP"
+.PP
+fan states
+.PP
+\fBEnumerator: \fP
+.in +1c
+.TP
+\fB\fIF_ON \fP\fP
+fan is on
+.TP
+\fB\fIF_OFF \fP\fP
+fan is off
+.TP
+\fB\fIF_ERR \fP\fP
+some error occurred with this fan
+.SS "enum \fBpower_state_t\fP"
+.PP
+\fBEnumerator: \fP
+.in +1c
+.TP
+\fB\fIP_AC \fP\fP
+if computer runs on AC
+.TP
+\fB\fIP_BATT \fP\fP
+if computer runs on battery
+.TP
+\fB\fIP_ERR \fP\fP
+no information can be found
+.SS "enum \fBthermal_mode_t\fP"
+.PP
+\fBEnumerator: \fP
+.in +1c
+.TP
+\fB\fICO_ACT \fP\fP
+fans will be turned after the temperature passes a critical point
+.TP
+\fB\fICO_PASS \fP\fP
+devices will be put in a lower power state after a critical point
+.TP
+\fB\fICO_CRIT \fP\fP
+system goes into suspend to disk if possible after a critical temperature
+.TP
+\fB\fICO_ERR \fP\fP
+some error occurred while reading the cooling mode
+.SS "enum \fBthermal_state_t\fP"
+.PP
+\fBEnumerator: \fP
+.in +1c
+.TP
+\fB\fIT_CRIT \fP\fP
+zone reports critical temperature, will cause system to go to S4
+.TP
+\fB\fIT_HOT \fP\fP
+zone reports high temperature, will cause system to shutdown immediately
+.TP
+\fB\fIT_PASS \fP\fP
+zone is on passive cooling
+.TP
+\fB\fIT_ACT \fP\fP
+zone is on active cooling, more power consumption
+.TP
+\fB\fIT_OK \fP\fP
+zone is ok
+.TP
+\fB\fIT_ERR \fP\fP
+some error occurred while reading the state of the zone
+.SH "Variable Documentation"
+.PP
+.SS "\fBbattery_t\fP \fBbatteries\fP[MAX_ITEMS]"
+.PP
+Array for existing batteries, loop until globals\->battery_count
+.SS "\fBfan_t\fP \fBfans\fP[MAX_ITEMS]"
+.PP
+Array for existing fans, loop until globals\->fan_count
+.SS "\fBthermal_t\fP \fBthermals\fP[MAX_ITEMS]"
+.PP
+Array for existing thermal zones, loop until globals\->thermal_count
+.SH "Additional information"
+.PP
+The package ships a test\-libacpi.c file which should be pretty self explanatory.
+Also have a look into libacpi.h file and the doxygen documentation in the doc/
+directory.
+.SH "Homepage"
+See http://www.ngolde.de/libacpi.html
+.SH "Author"
+.PP
+Write to nico (at) ngolde (dot) de for suggestions, hardware donations (very welcome, my notebook doesn't support
+all features and I could need a second battery), questions, fixes, bug reports, thanks, etc. :)

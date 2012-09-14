@@ -1,0 +1,55 @@
+README for libacpi - a general purpose ACPI library
+===================================================
+
+Introduction:
+=============
+libacpi is a general purpose shared library for programs gathering
+ACPI data like battery status, thermal zones, fans and ac status.
+
+Downloading:
+============
+You can download the latest version of libacpi from the following website:
+http://www.ngolde.de/libacpi.html
+
+Alternatively you can check out the latest version from the libacpi
+mercurial repository using:
+hg clone http://hg.modprobe.de/libacpi/
+
+Dependencies:
+=============
+None apart from libc development files and a C compiler.
+
+Installation:
+=============
+Compiling and installing libacpi is as simple as:
+$ make
+As root:
+$ make install
+
+You may want to modify config.mk
+
+After installing, link your source files with -lacpi
+
+Documentation:
+==============
+See http://www.ngolde.de/libacpi.html, doc/, man 3 libacpi and
+test-libacpi.c
+
+Programs using libacpi:
+=======================
+xbattbar-acpi (>=0.3): http://www.senzanome.org/xbattbar-acpi/
+acpitail: http://www.vanheusden.com/acpitail/
+
+If you want to see your program listed here please see "Contact" and write
+me a mail.
+
+Contact:
+========
+Nico Golde <nico@ngolde.de>
+Donations are always welcome since I can't test every feature with my
+notebook (Asus m6800nb).
+
+License:
+========
+libacpi is licensed under the terms of the MIT/X Consortium license, see
+LICENSE for further details

@@ -1,0 +1,6 @@
+<area shape="rect" href="$structbatt__state__t.html" title="battery life status" alt="" coords="5,5,88,85">
+<area shape="rect" title="batt_state" alt="" coords="51,81,59,89">
+<area shape="rect" title="batt_state" alt="" coords="63,145,71,153">
+<area shape="rect" href="$structcharge__state__t.html" title="charge state of battery" alt="" coords="112,5,211,85">
+<area shape="rect" title="charge_state" alt="" coords="149,81,157,89">
+<area shape="rect" title="charge_state" alt="" coords="137,145,145,153">

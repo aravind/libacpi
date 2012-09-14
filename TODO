@@ -1,0 +1,5 @@
+TODO for libacpi
+================
+- use trip points data somehow?
+- put the acpi version into the structure, some
+  people may use it -> SONAME bump
