@@ -63,8 +63,10 @@ dir_list(char *dir){
 	DIR *rddir = NULL;
 	struct dirent *rd;
 
-	if((rddir = opendir(dir)) == NULL)
+	if((rddir = opendir(dir)) == NULL) {
+        delete_list(list);
 		return NULL;
+    }
 	while((rd = readdir(rddir))){
 		if(!strncmp(".", rd->d_name, 1) || !strncmp("..", rd->d_name, 2))
 			continue;

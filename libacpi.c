@@ -84,9 +84,10 @@ get_acpi_content(const char *file){
 
 	if((buf = malloc(MAX_BUF + 1)) == NULL)
 		return NULL;
-	if((input = fopen(file, "r")) == NULL)
+	if((input = fopen(file, "r")) == NULL) {
+        free(buf);
 		return NULL;
-
+    }
 	read = fread(buf, 1, MAX_BUF, input);
 	if(read > 0) buf[read - 1] = '\0';
 	else buf[0] = '\0'; /* I would consider it a kernel bug if that happens */
@@ -142,12 +143,14 @@ init_acpi_batt(global_t *globals){
 	battery_t *binfo;
 	list_t *lst = NULL;
 	node_t *node = NULL;
-	int i = 0;
+	int dir_count, num_bat, i = 0;
 
 	globals->batt_count = 0;
 	globals->sysstyle = 0;
 	if((lst = dir_list(PROC_ACPI "battery")) == NULL || !lst->top)
 	{
+        if (lst)
+            delete_list(lst);
 		/* check for new Linux 2.6.24+ layout */
 		if((lst = dir_list(SYS_POWER)) == NULL || !lst->top)
 			return NOT_SUPPORTED;
@@ -159,7 +162,7 @@ init_acpi_batt(global_t *globals){
 			delete_list(lst);
 			return ALLOC_ERR;
 		}
-		globals->batt_count++;
+        globals->batt_count++;
 	}
 
 	if(globals->batt_count > MAX_ITEMS) return ITEM_EXCEED;
@@ -179,23 +182,29 @@ init_acpi_batt(global_t *globals){
 		}
 	}
 
-	for (i=0; i < globals->batt_count && i < MAX_ITEMS; i++){
-		binfo = &batteries[i];
-		snprintf(binfo->name, MAX_NAME, "%s", names[i]);
-		if(globals->sysstyle)
-		{
-			snprintf(binfo->state_file, MAX_NAME, "/%s/present", names[i]);
-			snprintf(binfo->info_file, MAX_NAME, SYS_POWER "/%s", names[i]);
-			snprintf(binfo->alarm_file, MAX_NAME, SYS_POWER "/%s/alarm", names[i]);
-		}
-		else
-		{
-			snprintf(binfo->state_file, MAX_NAME, PROC_ACPI "battery/%s/state", names[i]);
-			snprintf(binfo->info_file, MAX_NAME, PROC_ACPI "battery/%s/info", names[i]);
-			snprintf(binfo->alarm_file, MAX_NAME, PROC_ACPI "battery/%s/alarm", names[i]);
-		}
-		read_acpi_battinfo(i, globals->sysstyle);
-		read_acpi_battalarm(i, globals->sysstyle);
+    dir_count = globals->batt_count;
+
+    for (num_bat=i=0; i < dir_count && i < MAX_ITEMS; i++){
+        if (strncmp(names[i], "BAT", 3) == 0) {
+            binfo = &batteries[num_bat];
+            snprintf(binfo->name, MAX_NAME, "%s", names[i]);
+            if(globals->sysstyle) {
+                    snprintf(binfo->state_file, MAX_NAME, SYS_POWER "/%s/present", names[i]);
+                    snprintf(binfo->cstate_file, MAX_NAME, SYS_POWER "/%s/status", names[i]);
+                    snprintf(binfo->info_file, MAX_NAME, SYS_POWER "/%s", names[i]);
+                    snprintf(binfo->alarm_file, MAX_NAME, SYS_POWER "/%s/alarm", names[i]);
+            } else {
+                    snprintf(binfo->state_file, MAX_NAME, PROC_ACPI "battery/%s/state", names[i]);
+                    snprintf(binfo->cstate_file, MAX_NAME, PROC_ACPI "battery/%s/state", names[i]);
+                    snprintf(binfo->info_file, MAX_NAME, PROC_ACPI "battery/%s/info", names[i]);
+                    snprintf(binfo->alarm_file, MAX_NAME, PROC_ACPI "battery/%s/alarm", names[i]);
+            }
+            read_acpi_battinfo(num_bat, globals->sysstyle);
+            read_acpi_battalarm(num_bat, globals->sysstyle);
+            num_bat++;
+        } else {
+            globals->batt_count--;
+        }
 		free(names[i]);
 	}
 	delete_list(lst);
@@ -474,11 +483,11 @@ static void
 fill_charge_state(const char *state, battery_t *info){
 	if(state[0] == 'u')
 		info->charge_state = C_ERR;
-	else if(!strncmp (state, "disch", 5))
+	else if(!strncasecmp (state, "disch", 5))
 		info->charge_state = C_DISCHARGE;
-	else if (!strncmp (state, "charge", 6))
+	else if (!strncasecmp (state, "charge", 6))
 		info->charge_state = C_CHARGED;
-	else if (!strncmp (state, "chargi", 6))
+	else if (!strncasecmp (state, "chargi", 6))
 		info->charge_state = C_CHARGE;
 	else
 		info->charge_state = C_NOINFO;
@@ -535,37 +544,44 @@ read_acpi_battinfo(const int num, const int sysstyle){
 			info->present = 0;
 			return NOT_PRESENT;
 		}
+        free(buf);
 
 		snprintf(sysfile, MAX_NAME, "%s/charge_full_design", info->info_file);
 		if((buf = get_acpi_content(sysfile)) == NULL)
 			return NOT_SUPPORTED;
 		info->design_cap = strtol(buf, NULL, 10);
+        free(buf);
 
 		snprintf(sysfile, MAX_NAME, "%s/charge_full", info->info_file);
 		if((buf = get_acpi_content(sysfile)) == NULL)
 			return NOT_SUPPORTED;
 		info->last_full_cap = strtol(buf, NULL, 10);
+        free(buf);
 
 		snprintf(sysfile, MAX_NAME, "%s/charge_now", info->info_file);
 		if((buf = get_acpi_content(sysfile)) == NULL)
 			return NOT_SUPPORTED;
 		info->remaining_cap = strtol(buf, NULL, 10);
+        free(buf);
 
 		snprintf(sysfile, MAX_NAME, "%s/voltage_min_design", info->info_file);
 		if((buf = get_acpi_content(sysfile)) == NULL)
 			return NOT_SUPPORTED;
 		info->design_voltage = strtol(buf, NULL, 10);
+        free(buf);
 
 		snprintf(sysfile, MAX_NAME, "%s/voltage_now", info->info_file);
 		if((buf = get_acpi_content(sysfile)) == NULL)
 			return NOT_SUPPORTED;
 		info->present_voltage = strtol(buf, NULL, 10);
+        free(buf);
 
 		/* FIXME: is rate == current here? */
 		snprintf(sysfile, MAX_NAME, "%s/current_now", info->info_file);
 		if((buf = get_acpi_content(sysfile)) == NULL)
 			return NOT_SUPPORTED;
 		info->present_rate = strtol(buf, NULL, 10);
+        free(buf);
 
 		return SUCCESS;
 	}
@@ -613,13 +629,14 @@ static int
 read_acpi_battstate(const int num){
 	char *buf = NULL;
 	char *tmp = NULL;
+	char sysfile[MAX_NAME];
 	battery_t *info = &batteries[num];
 	unsigned int i = 0;
 
 	if((buf = get_acpi_content(info->state_file)) == NULL)
 		return NOT_SUPPORTED;
 	
-	if((tmp = scan_acpi_value(buf, "present:")) && !strncmp(tmp, "yes", 3)) {
+	if((tmp = scan_acpi_value(buf, "1")) != NULL) {
 		info->present = 1;
 		free(tmp);
 	} else {
@@ -630,27 +647,32 @@ read_acpi_battstate(const int num){
 
 	/* TODO REMOVE DEBUG */
 	/* printf("%s\n\n", buf); */
+    free(buf);
 
-	if((tmp = scan_acpi_value(buf, "charging state:")) && tmp[0] != 'u') {
-		fill_charge_state(tmp, info);
-		free(tmp);
-	} else {
-		info->charge_state = C_NOINFO;
-	}
+    if ((buf = get_acpi_content(info->cstate_file)) == NULL)
+        return NOT_SUPPORTED;
 
-	for (;battstate_values[i].value; i++) {
-		if ((tmp = scan_acpi_value(buf, battstate_values[i].value)) && tmp[0] != 'u') {
-			*((int *)(((char *)info) + battstate_values[i].offset)) = strtol(tmp, NULL, 10);
-			free(tmp);
-		} else {
-			*((int *)(((char *)info) + battstate_values[i].offset)) = NOT_SUPPORTED;
-		}
-	}
+    fill_charge_state(buf, info);
+    free(buf);
+
+    snprintf(sysfile, MAX_NAME, "%s/charge_now", info->info_file);
+    if ((buf = get_acpi_content(sysfile)) != NULL)
+        info->remaining_cap = strtol(buf, NULL, 10);
+    free(buf);
+
+    snprintf(sysfile, MAX_NAME, "%s/voltage_now", info->info_file);
+    if ((buf = get_acpi_content(sysfile)) != NULL)
+        info->present_voltage = strtol(buf, NULL, 10);
+    free(buf);
+
+    snprintf(sysfile, MAX_NAME, "%s/current_now", info->info_file);
+    if ((buf = get_acpi_content(sysfile)) != NULL)
+        info->present_rate = strtol(buf, NULL, 10);
+    free(buf);
 
 	/* get information from the info file */
 	batt_charge_state(info);
 	
-	free(buf);
 	return SUCCESS;
 }
 
@@ -702,10 +724,12 @@ calc_remain_time(const int num){
 int
 read_acpi_batt(const int num){
 	if(num > MAX_ITEMS) return ITEM_EXCEED;
-	read_acpi_battstate(num);
-	read_acpi_battalarm(num, 0);
-	calc_remain_perc(num);
-	calc_remain_chargetime(num);
-	calc_remain_time(num);
-	return SUCCESS;
+	if (read_acpi_battstate(num) == SUCCESS) {
+        read_acpi_battalarm(num, 0);
+        calc_remain_perc(num);
+        calc_remain_chargetime(num);
+        calc_remain_time(num);
+        return SUCCESS;
+    }
+    return -1;
 }

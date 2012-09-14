@@ -118,6 +118,7 @@ typedef struct {
 typedef struct {
 	char name[MAX_NAME];         /**< name of the battery found in proc vfs */
 	char state_file[MAX_NAME];   /**< corresponding state file name + path */
+	char cstate_file[MAX_NAME];  /**< corresponding status file name + path */
 	char info_file[MAX_NAME];    /**< corresponding info file + path */
 	char alarm_file[MAX_NAME];   /**< corresponding alarm file + path */
 	int present;                 /**< battery slot is currently used by a battery or not? 0 if not, 1 if yes */
