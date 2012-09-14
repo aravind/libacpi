@@ -14,8 +14,9 @@
 #include "libacpi.h"
 #include "list.h"
 
-static int read_acpi_battinfo(const int num);
-static int read_acpi_battalarm(const int num);
+
+static int read_acpi_battinfo(const int num, const int sysstyle);
+static int read_acpi_battalarm(const int num, const int sysstyle);
 static int read_acpi_battstate(const int num);
 static void read_acpi_thermalzones(global_t *globals);
 
@@ -144,8 +145,15 @@ init_acpi_batt(global_t *globals){
 	int i = 0;
 
 	globals->batt_count = 0;
+	globals->sysstyle = 0;
 	if((lst = dir_list(PROC_ACPI "battery")) == NULL || !lst->top)
-		return NOT_SUPPORTED;
+	{
+		/* check for new Linux 2.6.24+ layout */
+		if((lst = dir_list(SYS_POWER)) == NULL || !lst->top)
+			return NOT_SUPPORTED;
+		else
+			globals->sysstyle = 1;
+	}
 	for(node = lst->top; node; node=node->next){
 		if((names[globals->batt_count] = strdup(node->name)) == NULL){
 			delete_list(lst);
@@ -174,11 +182,20 @@ init_acpi_batt(global_t *globals){
 	for (i=0; i < globals->batt_count && i < MAX_ITEMS; i++){
 		binfo = &batteries[i];
 		snprintf(binfo->name, MAX_NAME, "%s", names[i]);
-		snprintf(binfo->state_file, MAX_NAME, PROC_ACPI "battery/%s/state", names[i]);
-		snprintf(binfo->info_file, MAX_NAME, PROC_ACPI "battery/%s/info", names[i]);
-		snprintf(binfo->alarm_file, MAX_NAME, PROC_ACPI "battery/%s/alarm", names[i]);
-		read_acpi_battinfo(i);
-		read_acpi_battalarm(i);
+		if(globals->sysstyle)
+		{
+			snprintf(binfo->state_file, MAX_NAME, "/%s/present", names[i]);
+			snprintf(binfo->info_file, MAX_NAME, SYS_POWER "/%s", names[i]);
+			snprintf(binfo->alarm_file, MAX_NAME, SYS_POWER "/%s/alarm", names[i]);
+		}
+		else
+		{
+			snprintf(binfo->state_file, MAX_NAME, PROC_ACPI "battery/%s/state", names[i]);
+			snprintf(binfo->info_file, MAX_NAME, PROC_ACPI "battery/%s/info", names[i]);
+			snprintf(binfo->alarm_file, MAX_NAME, PROC_ACPI "battery/%s/alarm", names[i]);
+		}
+		read_acpi_battinfo(i, globals->sysstyle);
+		read_acpi_battalarm(i, globals->sysstyle);
 		free(names[i]);
 	}
 	delete_list(lst);
@@ -196,11 +213,22 @@ read_acpi_acstate(global_t *globals){
 		ac->ac_state = P_ERR;
 		return;
 	}
-	if((tmp = scan_acpi_value(buf, "state:")) && !strncmp(tmp, "on-line", 7))
-		ac->ac_state = P_AC;
-	else if(tmp && !strncmp(tmp, "off-line", 8))
-		ac->ac_state = P_BATT;
-	else ac->ac_state = P_ERR;
+	if(globals->sysstyle)
+	{
+		if(!strcmp(buf, "1"))
+			ac->ac_state = P_AC;
+		else if(!strcmp(buf, "0"))
+			ac->ac_state = P_BATT;
+		else ac->ac_state = P_ERR;
+	}
+	else
+	{
+		if((tmp = scan_acpi_value(buf, "state:")) && !strncmp(tmp, "on-line", 7))
+			ac->ac_state = P_AC;
+		else if(tmp && !strncmp(tmp, "off-line", 8))
+			ac->ac_state = P_BATT;
+		else ac->ac_state = P_ERR;
+	}
 	free(buf);
 	free(tmp);
 }
@@ -212,14 +240,22 @@ init_acpi_acadapt(global_t *globals){
 	list_t *lst = NULL;
 	adapter_t *ac = &globals->adapt;
 
+	globals->sysstyle = 0;
 	if((lst = dir_list(PROC_ACPI "ac_adapter")) == NULL || !lst->top)
-		return NOT_SUPPORTED;
-
+	{
+		if((lst = dir_list(SYS_POWER "/AC")) == NULL || !lst->top)
+			return NOT_SUPPORTED;
+		else
+			globals->sysstyle = 1;
+	}
 	if((!lst->top->name || ((ac->name = strdup(lst->top->name)) == NULL))){
 		delete_list(lst);
 		return ALLOC_ERR;
 	}
-	snprintf(ac->state_file, MAX_NAME, PROC_ACPI "ac_adapter/%s/state", ac->name);
+	if(globals->sysstyle)
+		snprintf(ac->state_file, MAX_NAME, SYS_POWER "/AC/online");
+	else
+		snprintf(ac->state_file, MAX_NAME, PROC_ACPI "ac_adapter/%s/state", ac->name);
 	delete_list(lst);
 	read_acpi_acstate(globals);
 	return SUCCESS;
@@ -450,7 +486,7 @@ fill_charge_state(const char *state, battery_t *info){
 
 /* read alarm capacity, return 0 on success, negative values on error */
 static int
-read_acpi_battalarm(const int num){
+read_acpi_battalarm(const int num, const int sysstyle){
 	char *buf = NULL;
 	char *tmp = NULL;
 	battery_t *info = &batteries[num];
@@ -458,10 +494,22 @@ read_acpi_battalarm(const int num){
 	if((buf = get_acpi_content(info->alarm_file)) == NULL)
 		return NOT_SUPPORTED;
 
-	if((tmp = scan_acpi_value(buf, "alarm:")) && tmp[0] != 'u')
-		info->alarm = strtol(tmp, NULL, 10);
+	if(sysstyle)
+	{
+		if(!strcmp(buf, "0"))
+			info->alarm = 0;
+		else if(!strcmp(buf, "1"))
+			info->alarm = 1;
+		else
+			info->alarm = NOT_SUPPORTED;
+	}
 	else
-		info->alarm = NOT_SUPPORTED;
+	{
+		if((tmp = scan_acpi_value(buf, "alarm:")) && tmp[0] != 'u')
+			info->alarm = strtol(tmp, NULL, 10);
+		else
+			info->alarm = NOT_SUPPORTED;
+	}
 	free(buf);
 	free(tmp);
 	return SUCCESS;
@@ -469,11 +517,58 @@ read_acpi_battalarm(const int num){
 
 /* reads static values for a battery (info file), returns SUCCESS */
 static int
-read_acpi_battinfo(const int num){
+read_acpi_battinfo(const int num, const int sysstyle){
 	char *buf = NULL;
 	char *tmp = NULL;
 	battery_t *info = &batteries[num];
 	int i = 0;
+	char sysfile[MAX_NAME];
+
+	if(sysstyle)
+	{
+		snprintf(sysfile, MAX_NAME, "%s/present", info->info_file);
+		if((buf = get_acpi_content(sysfile)) == NULL)
+			return NOT_SUPPORTED;
+		if(!strcmp(buf, "1")) {
+			info->present = 1;
+		} else {
+			info->present = 0;
+			return NOT_PRESENT;
+		}
+
+		snprintf(sysfile, MAX_NAME, "%s/charge_full_design", info->info_file);
+		if((buf = get_acpi_content(sysfile)) == NULL)
+			return NOT_SUPPORTED;
+		info->design_cap = strtol(buf, NULL, 10);
+
+		snprintf(sysfile, MAX_NAME, "%s/charge_full", info->info_file);
+		if((buf = get_acpi_content(sysfile)) == NULL)
+			return NOT_SUPPORTED;
+		info->last_full_cap = strtol(buf, NULL, 10);
+
+		snprintf(sysfile, MAX_NAME, "%s/charge_now", info->info_file);
+		if((buf = get_acpi_content(sysfile)) == NULL)
+			return NOT_SUPPORTED;
+		info->remaining_cap = strtol(buf, NULL, 10);
+
+		snprintf(sysfile, MAX_NAME, "%s/voltage_min_design", info->info_file);
+		if((buf = get_acpi_content(sysfile)) == NULL)
+			return NOT_SUPPORTED;
+		info->design_voltage = strtol(buf, NULL, 10);
+
+		snprintf(sysfile, MAX_NAME, "%s/voltage_now", info->info_file);
+		if((buf = get_acpi_content(sysfile)) == NULL)
+			return NOT_SUPPORTED;
+		info->present_voltage = strtol(buf, NULL, 10);
+
+		/* FIXME: is rate == current here? */
+		snprintf(sysfile, MAX_NAME, "%s/current_now", info->info_file);
+		if((buf = get_acpi_content(sysfile)) == NULL)
+			return NOT_SUPPORTED;
+		info->present_rate = strtol(buf, NULL, 10);
+
+		return SUCCESS;
+	}
 
 	if((buf = get_acpi_content(info->info_file)) == NULL)
 		return NOT_SUPPORTED;
@@ -608,7 +703,7 @@ int
 read_acpi_batt(const int num){
 	if(num > MAX_ITEMS) return ITEM_EXCEED;
 	read_acpi_battstate(num);
-	read_acpi_battalarm(num);
+	read_acpi_battalarm(num, 0);
 	calc_remain_perc(num);
 	calc_remain_chargetime(num);
 	calc_remain_time(num);

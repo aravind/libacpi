@@ -46,6 +46,7 @@ main(void){
 			read_acpi_batt(i);
 
 			if(binfo->present)
+			{
 				printf("\n%s:\tpresent: %d\n"
 						"\tdesign capacity: %d\n"
 						"\tlast full capacity: %d\n"
@@ -65,6 +66,9 @@ main(void){
 						binfo->batt_state, binfo->percentage, 
 						binfo->charge_time / 60, binfo->charge_time % 60,
 						binfo->remaining_time / 60, binfo->remaining_time % 60);
+				if(binfo->alarm)
+					printf("%s: Alarm!\n", binfo->name);
+			}
 		}
 	} else printf("Battery information:\tnot supported\n");
 	

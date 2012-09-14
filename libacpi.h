@@ -12,6 +12,8 @@
 #define __LIBACPI_H__
 
 #define PROC_ACPI "/proc/acpi/"
+#define SYS_POWER "/sys/class/power_supply"
+
 #define LINE_MAX 256
 #define MAX_NAME 512
 #define MAX_BUF 1024
@@ -177,6 +179,7 @@ typedef struct {
 	int fan_count;                /**< number of found fans */
 	int temperature;              /**< system temperature if we only have on thermal zone */
 	adapter_t adapt;              /**< ac adapter */
+	int sysstyle;
 } global_t;
 
 /**
@@ -239,6 +242,7 @@ int read_acpi_batt(const int num);
  * Looks up if the ac adapter is plugged in or not
  * and sets the values in a struct
  * @param globals pointer to the global acpi structure
+ * @param sysstyle whether or not to use the /sys interface
  */
 void read_acpi_acstate(global_t *globals);
 /**
