@@ -476,7 +476,7 @@ fill_charge_state(const char *state, battery_t *info){
 		info->charge_state = C_ERR;
 	else if(!strncasecmp (state, "disch", 5))
 		info->charge_state = C_DISCHARGE;
-	else if (!strncasecmp (state, "charge", 6))
+	else if (!strncasecmp (state, "full", 4))
 		info->charge_state = C_CHARGED;
 	else if (!strncasecmp (state, "chargi", 6))
 		info->charge_state = C_CHARGE;
