@@ -36,14 +36,6 @@ battinfo_values[] = {
 	{ NULL, 0 }
 };
 
-static acpi_value_t
-battstate_values[] = {
-	{ "present rate:", offsetof(battery_t, present_rate) },
-	{ "remaining capacity:", offsetof(battery_t, remaining_cap) },
-	{ "present voltage:", offsetof(battery_t, present_voltage) },
-	{ NULL, 0 }
-};
-
 /* given a buffer for example from a file, search for key
  * and return a pointer to the value of it. On error return NULL*/
 static char *
@@ -189,13 +181,11 @@ init_acpi_batt(global_t *globals){
             binfo = &batteries[num_bat];
             snprintf(binfo->name, MAX_NAME, "%s", names[i]);
             if(globals->sysstyle) {
-                    snprintf(binfo->state_file, MAX_NAME, SYS_POWER "/%s/present", names[i]);
-                    snprintf(binfo->cstate_file, MAX_NAME, SYS_POWER "/%s/status", names[i]);
+                    snprintf(binfo->state_file, MAX_NAME, SYS_POWER "/%s/status", names[i]);
                     snprintf(binfo->info_file, MAX_NAME, SYS_POWER "/%s", names[i]);
                     snprintf(binfo->alarm_file, MAX_NAME, SYS_POWER "/%s/alarm", names[i]);
             } else {
                     snprintf(binfo->state_file, MAX_NAME, PROC_ACPI "battery/%s/state", names[i]);
-                    snprintf(binfo->cstate_file, MAX_NAME, PROC_ACPI "battery/%s/state", names[i]);
                     snprintf(binfo->info_file, MAX_NAME, PROC_ACPI "battery/%s/info", names[i]);
                     snprintf(binfo->alarm_file, MAX_NAME, PROC_ACPI "battery/%s/alarm", names[i]);
             }
@@ -479,8 +469,9 @@ batt_charge_state(battery_t *info){
 }
 
 /* fill charge_state of a given battery num, return 0 on success or negative values on error */
-static void
+static charge_state_t
 fill_charge_state(const char *state, battery_t *info){
+    info->charge_state = C_NOINFO;
 	if(state[0] == 'u')
 		info->charge_state = C_ERR;
 	else if(!strncasecmp (state, "disch", 5))
@@ -491,6 +482,7 @@ fill_charge_state(const char *state, battery_t *info){
 		info->charge_state = C_CHARGE;
 	else
 		info->charge_state = C_NOINFO;
+    return info->charge_state;
 }
 
 /* read alarm capacity, return 0 on success, negative values on error */
@@ -628,32 +620,25 @@ read_acpi_battinfo(const int num, const int sysstyle){
 static int
 read_acpi_battstate(const int num){
 	char *buf = NULL;
-	char *tmp = NULL;
 	char sysfile[MAX_NAME];
+    charge_state_t cstate;
 	battery_t *info = &batteries[num];
-	unsigned int i = 0;
 
-	if((buf = get_acpi_content(info->state_file)) == NULL)
-		return NOT_SUPPORTED;
-	
-	if((tmp = scan_acpi_value(buf, "1")) != NULL) {
-		info->present = 1;
-		free(tmp);
-	} else {
+	if((buf = get_acpi_content(info->state_file)) == NULL) {
 		info->present = 0;
-		free(buf);
 		return NOT_PRESENT;
+    } else {
+		info->present = 1;
 	}
 
 	/* TODO REMOVE DEBUG */
 	/* printf("%s\n\n", buf); */
-    free(buf);
 
-    if ((buf = get_acpi_content(info->cstate_file)) == NULL)
+    cstate = fill_charge_state(buf, info);
+    free(buf);
+    if ((cstate == C_NOINFO) || (cstate == C_ERR)) {
         return NOT_SUPPORTED;
-
-    fill_charge_state(buf, info);
-    free(buf);
+    }
 
     snprintf(sysfile, MAX_NAME, "%s/charge_now", info->info_file);
     if ((buf = get_acpi_content(sysfile)) != NULL)
